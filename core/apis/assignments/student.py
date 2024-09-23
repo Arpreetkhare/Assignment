@@ -1,8 +1,8 @@
-from flask import Blueprint
+from flask import Blueprint,jsonify
 from core import db
 from core.apis import decorators
 from core.apis.responses import APIResponse
-from core.models.assignments import Assignment
+from core.models import Assignment
 
 from .schema import AssignmentSchema, AssignmentSubmitSchema
 student_assignments_resources = Blueprint('student_assignments_resources', __name__)
@@ -22,9 +22,24 @@ def list_assignments(p):
 @decorators.authenticate_principal
 def upsert_assignment(p, incoming_payload):
     """Create or Edit an assignment"""
+
+    
+    # Load the assignment data from the incoming payload
     assignment = AssignmentSchema().load(incoming_payload)
     assignment.student_id = p.student_id
 
+    # Check if we're editing an existing assignment
+    if assignment.id is not None:
+        # You may also want to check if the assignment exists before upserting
+        existing_assignment = Assignment.get_by_id(assignment.id)
+        if existing_assignment is None:
+            return jsonify({
+                "error": True,
+                "message": "No assignment found with this id",
+                "status_code": 404
+            }), 404
+
+    # Upsert the assignment, which includes validation for DRAFT state
     upserted_assignment = Assignment.upsert(assignment)
     db.session.commit()
     upserted_assignment_dump = AssignmentSchema().dump(upserted_assignment)
@@ -37,6 +52,8 @@ def upsert_assignment(p, incoming_payload):
 def submit_assignment(p, incoming_payload):
     """Submit an assignment"""
     submit_assignment_payload = AssignmentSubmitSchema().load(incoming_payload)
+
+    
 
     submitted_assignment = Assignment.submit(
         _id=submit_assignment_payload.id,

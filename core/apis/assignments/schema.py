@@ -1,7 +1,7 @@
-from marshmallow import Schema, EXCLUDE, fields, post_load
+from marshmallow import Schema, EXCLUDE, fields, post_load, validates, ValidationError
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, auto_field
 from marshmallow_enum import EnumField
-from core.models.assignments import Assignment, GradeEnum
+from core.models import Assignment, GradeEnum
 from core.libs.helpers import GeneralObject
 
 
@@ -23,6 +23,13 @@ class AssignmentSchema(SQLAlchemyAutoSchema):
     def initiate_class(self, data_dict, many, partial):
         # pylint: disable=unused-argument,no-self-use
         return Assignment(**data_dict)
+    
+    content = fields.String(required=True)
+
+    @validates('content')
+    def validate_content(self, value):
+        if value is None or value.strip() == '':
+            raise ValidationError('Content cannot be null or empty.')
 
 
 class AssignmentSubmitSchema(Schema):
@@ -49,3 +56,11 @@ class AssignmentGradeSchema(Schema):
     def initiate_class(self, data_dict, many, partial):
         # pylint: disable=unused-argument,no-self-use
         return GeneralObject(**data_dict)
+
+
+
+class TeacherSchema(Schema):
+    id = fields.Int(required=True)
+    user_id = fields.Int(required=True)
+    created_at = fields.DateTime(required=True)
+    updated_at = fields.DateTime(required=True)
